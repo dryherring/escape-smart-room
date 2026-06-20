@@ -93,7 +93,7 @@
   <div class="join-form">
     <input class="field code-field" id="codeInput" placeholder="CODE" maxlength="4" oninput="this.value=this.value.toUpperCase()" />
     <input class="field" id="nameInput" placeholder="Your name" maxlength="20" />
-    <button class="btn btn-primary" onclick="joinGame()">LET'S GO 🔥</button>
+    <button class="btn btn-primary" id="joinBtn">LET'S GO 🔥</button>
   </div>
 </div>
 
@@ -207,6 +207,17 @@ function soundCorrect() {
 }
 function soundWrong() { playTone(200,'sawtooth',.3,.3); playTone(150,'sawtooth',.3,.3,.2); }
 function soundTick() { playTone(1400,'square',.04,.12); }
+
+// ── WIRE UP JOIN BUTTON (avoids ES module scope issue with onclick) ──
+document.addEventListener('DOMContentLoaded', () => {
+  const btn = document.getElementById('joinBtn');
+  if (btn) btn.addEventListener('click', () => window.joinGame());
+  // Also allow Enter key on inputs
+  ['codeInput','nameInput'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.addEventListener('keydown', e => { if (e.key === 'Enter') window.joinGame(); });
+  });
+});
 
 // ── JOIN ──
 window.joinGame = async function() {
@@ -326,16 +337,22 @@ function showQuestion(q, qIdx) {
   // Answer buttons
   const letters = ['A','B','C','D'];
   document.getElementById('ansBtns').innerHTML = q.answers.map((a, i) =>
-    `<button class="ans-btn" id="ab${i}" onclick="submitAnswer(${i})">
+    `<button class="ans-btn" id="ab${i}">
       <span class="ltr">${letters[i]}</span>
       <span class="ans-txt">${a}</span>
     </button>`
   ).join('');
 
+  // Attach listeners after rendering (avoids ES module scope issue)
+  q.answers.forEach((_, i) => {
+    const btn = document.getElementById('ab' + i);
+    if (btn) btn.addEventListener('click', () => submitAnswer(i));
+  });
+
   showScreen('s-answer');
 }
 
-window.submitAnswer = function(idx) {
+
   if (answered) return;
   answered = true;
   clearInterval(timerInterval);
