@@ -1,0 +1,574 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Escape the Smart Room — Host</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=Space+Grotesk:wght@400;600;700&family=Space+Mono:wght@400;700&display=swap');
+  :root{--bg:#0d0d0f;--surface:#18181c;--surface2:#222228;--accent:#f5c800;--accent2:#ff4d6d;--accent3:#00d4aa;--text:#f0eeea;--muted:#888;}
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{background:var(--bg);color:var(--text);font-family:'Space Grotesk',sans-serif;min-height:100vh;overflow:hidden;}
+  .screen{display:none;width:100vw;min-height:100vh;flex-direction:column;}
+  .screen.active{display:flex;}
+  #s-land{align-items:center;justify-content:center;position:relative;}
+  #s-land::before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse 80% 60% at 50% 40%,#f5c80015 0%,transparent 70%);pointer-events:none;}
+  .land-inner{text-align:center;z-index:1;padding:2rem;}
+  .game-title{font-family:'Black Han Sans',sans-serif;font-size:clamp(2.8rem,9vw,7rem);line-height:.88;color:var(--accent);text-shadow:0 0 80px #f5c80040;}
+  .game-sub{font-family:'Space Mono',monospace;font-size:.8rem;color:var(--muted);margin:1rem 0 2rem;letter-spacing:4px;text-transform:uppercase;}
+  .btn{font-family:'Black Han Sans',sans-serif;font-size:1.05rem;letter-spacing:1px;padding:.8rem 2rem;border:none;border-radius:6px;cursor:pointer;transition:transform .1s,box-shadow .2s;}
+  .btn:hover{transform:translateY(-2px);box-shadow:0 8px 24px rgba(0,0,0,.5);}
+  .btn:active{transform:translateY(0);}
+  .btn-primary{background:var(--accent);color:#0d0d0f;}
+  .btn-secondary{background:var(--surface2);color:var(--text);border:2px solid #333;}
+  .btn-sm{font-size:.82rem;padding:.45rem .9rem;}
+  #s-setup{align-items:center;justify-content:center;gap:1.25rem;padding:2rem;}
+  .setup-card{background:var(--surface);border:2px solid #333;border-radius:12px;padding:1.5rem;width:100%;max-width:480px;}
+  .setup-label{font-family:'Space Mono',monospace;font-size:.75rem;letter-spacing:3px;color:var(--muted);text-transform:uppercase;margin-bottom:.75rem;}
+  .input-row{display:flex;gap:.5rem;}
+  .txt-input{flex:1;background:var(--surface2);border:2px solid #333;border-radius:8px;color:var(--text);font-family:'Space Grotesk',sans-serif;font-size:1rem;padding:.65rem 1rem;outline:none;transition:border-color .2s;}
+  .txt-input:focus{border-color:var(--accent);}
+  .txt-input::placeholder{color:#555;}
+  .add-btn{font-family:'Black Han Sans',sans-serif;font-size:.95rem;padding:.65rem 1.1rem;background:var(--accent3);color:#0d0d0f;border:none;border-radius:8px;cursor:pointer;}
+  .players-wrap{display:flex;flex-wrap:wrap;gap:.5rem;margin-top:.75rem;min-height:36px;}
+  .p-chip{background:var(--surface2);border:2px solid var(--accent3);border-radius:30px;padding:.35rem .9rem;font-size:.9rem;font-weight:600;display:flex;align-items:center;gap:.4rem;animation:popIn .3s cubic-bezier(.34,1.56,.64,1);}
+  .p-chip-rm{cursor:pointer;color:var(--muted);font-size:.75rem;}
+  .p-chip-rm:hover{color:var(--accent2);}
+  @keyframes popIn{from{transform:scale(.5);opacity:0}to{transform:scale(1);opacity:1}}
+  .config-hint{background:var(--surface2);border:2px dashed #333;border-radius:10px;padding:1.2rem;font-family:'Space Mono',monospace;font-size:.78rem;line-height:1.9;color:var(--muted);}
+  .config-hint strong{color:var(--accent);}
+  .config-input{width:100%;background:var(--surface2);border:2px solid #555;border-radius:6px;color:var(--accent3);font-family:'Space Mono',monospace;font-size:.82rem;padding:.5rem .8rem;outline:none;margin-top:.4rem;}
+  .config-input:focus{border-color:var(--accent3);}
+  .q-count-row{display:flex;align-items:center;gap:1rem;margin-top:.75rem;flex-wrap:wrap;}
+  .q-count-label{font-family:'Space Mono',monospace;font-size:.8rem;color:var(--muted);}
+  .q-count-btn{font-family:'Black Han Sans',sans-serif;font-size:.9rem;padding:.35rem .9rem;border-radius:6px;border:2px solid #444;background:var(--surface2);color:var(--muted);cursor:pointer;transition:all .15s;}
+  .q-count-btn.active{border-color:var(--accent);color:var(--accent);background:#f5c80015;}
+  #s-lobby{align-items:center;justify-content:center;gap:1.25rem;padding:2rem;flex-direction:column;}
+  .room-code{font-family:'Black Han Sans',sans-serif;font-size:clamp(5rem,14vw,10rem);color:var(--accent);line-height:1;text-shadow:0 0 50px #f5c80040;letter-spacing:10px;}
+  .join-instruction{font-family:'Space Mono',monospace;font-size:.9rem;color:var(--accent3);text-align:center;}
+  .lobby-players{display:flex;flex-wrap:wrap;gap:.6rem;justify-content:center;max-width:600px;}
+  .lp-chip{background:var(--surface2);border:2px solid var(--accent3);border-radius:30px;padding:.4rem 1rem;font-weight:600;font-size:.95rem;display:flex;align-items:center;gap:.4rem;animation:popIn .3s cubic-bezier(.34,1.56,.64,1);}
+  .pulse-dot{display:inline-block;width:9px;height:9px;border-radius:50%;background:var(--accent3);animation:pulse 1.5s infinite;margin-right:.3rem;vertical-align:middle;}
+  @keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.3;transform:scale(.6)}}
+  #s-q{padding:1.2rem 2rem 1rem;justify-content:space-between;}
+  .q-header{display:flex;justify-content:space-between;align-items:center;gap:1rem;}
+  .q-counter{font-family:'Space Mono',monospace;font-size:.82rem;color:var(--muted);letter-spacing:2px;}
+  .q-cat{background:var(--surface2);border:1px solid #333;border-radius:20px;padding:.28rem .8rem;font-size:.75rem;font-weight:700;color:var(--accent);letter-spacing:1px;text-transform:uppercase;}
+  .q-timer{font-family:'Black Han Sans',sans-serif;font-size:1.6rem;color:var(--accent);min-width:2.5rem;text-align:right;transition:color .5s;}
+  .q-timer.urgent{color:var(--accent2);}
+  .tbar-wrap{height:5px;background:var(--surface2);border-radius:3px;margin:.75rem 0;overflow:hidden;}
+  .tbar{height:100%;background:var(--accent);border-radius:3px;transition:width 1s linear,background .5s;}
+  .tbar.urgent{background:var(--accent2);}
+  /* HOST */
+  .host-wrap{display:flex;align-items:flex-start;gap:.75rem;margin:.4rem 0;}
+  .host-avatar{width:48px;height:48px;border-radius:50%;background:linear-gradient(135deg,#f5c800,#ff4d6d);display:flex;align-items:center;justify-content:center;font-size:1.5rem;flex-shrink:0;box-shadow:0 0 20px #f5c80040;animation:hostPulse 3s ease-in-out infinite;}
+  @keyframes hostPulse{0%,100%{box-shadow:0 0 20px #f5c80040}50%{box-shadow:0 0 35px #f5c80080}}
+  .host-bubble{background:var(--surface2);border:1px solid #333;border-radius:0 12px 12px 12px;padding:.6rem 1rem;font-family:'Space Mono',monospace;font-size:.78rem;color:var(--accent);flex:1;min-height:44px;position:relative;line-height:1.55;}
+  .host-bubble::before{content:'';position:absolute;left:-8px;top:10px;border:4px solid transparent;border-right-color:#333;}
+  .host-bubble::after{content:'';position:absolute;left:-6px;top:11px;border:3px solid transparent;border-right-color:var(--surface2);}
+  .host-name{font-family:'Black Han Sans',sans-serif;font-size:.7rem;color:var(--muted);letter-spacing:2px;margin-bottom:.25rem;}
+  .host-typing{display:inline-flex;gap:3px;align-items:center;height:16px;}
+  .host-typing span{width:5px;height:5px;border-radius:50%;background:var(--accent);animation:typingDot 1.2s ease-in-out infinite;}
+  .host-typing span:nth-child(2){animation-delay:.2s;}
+  .host-typing span:nth-child(3){animation-delay:.4s;}
+  @keyframes typingDot{0%,60%,100%{transform:translateY(0);opacity:.4}30%{transform:translateY(-4px);opacity:1}}
+  .q-text{font-family:'Black Han Sans',sans-serif;font-size:clamp(1.4rem,2.8vw,2.6rem);line-height:1.15;margin:.5rem 0;}
+  .answers-grid{display:grid;grid-template-columns:1fr 1fr;gap:.65rem;}
+  .ans-opt{background:var(--surface);border:2px solid var(--surface2);border-radius:10px;padding:.8rem 1.1rem;font-size:clamp(.85rem,1.5vw,1.1rem);font-weight:600;display:flex;align-items:center;gap:.65rem;transition:all .35s;position:relative;}
+  .ans-opt.correct{background:#00d4aa14;border-color:var(--accent3);color:var(--accent3);}
+  .ans-opt.wrong{opacity:.35;}
+  .ans-letter{font-family:'Black Han Sans',sans-serif;font-size:1.3rem;color:var(--accent);min-width:1.7rem;}
+  .ans-opt.correct .ans-letter{color:var(--accent3);}
+  .ans-count{margin-left:auto;font-family:'Black Han Sans',sans-serif;font-size:1.1rem;color:var(--accent);opacity:0;transition:opacity .3s;}
+  .ans-count.show{opacity:1;}
+  .scoreboard{display:flex;gap:.45rem;overflow-x:auto;padding-bottom:.25rem;flex-shrink:0;margin-top:.5rem;}
+  .sc-card{background:var(--surface2);border-radius:8px;padding:.35rem .65rem;text-align:center;min-width:72px;border:2px solid transparent;transition:border-color .3s,transform .25s;flex-shrink:0;}
+  .sc-card.answered{border-color:#555;}
+  .sc-card.correct-now{border-color:var(--accent3);transform:scale(1.08);}
+  .sc-card.wrong-now{border-color:var(--accent2);}
+  .sc-emoji{font-size:.9rem;}
+  .sc-name{font-size:.65rem;font-weight:700;white-space:nowrap;overflow:hidden;max-width:68px;}
+  .sc-pts{font-family:'Black Han Sans',sans-serif;font-size:1.2rem;color:var(--accent);}
+  .bottom-bar{display:flex;align-items:center;justify-content:space-between;margin-top:.4rem;min-height:40px;}
+  .kbd-hint{font-family:'Space Mono',monospace;font-size:.7rem;color:#444;}
+  #s-results{align-items:center;justify-content:center;flex-direction:column;gap:1rem;padding:2rem;text-align:center;}
+  .final-title{font-family:'Black Han Sans',sans-serif;font-size:clamp(3rem,9vw,6rem);color:var(--accent);text-shadow:0 0 60px #f5c80050;line-height:.9;}
+  .podium{display:flex;align-items:flex-end;gap:.75rem;justify-content:center;}
+  .podium-block{display:flex;flex-direction:column;align-items:center;gap:.3rem;}
+  .p-name{font-weight:700;font-size:.9rem;}
+  .p-score{font-family:'Black Han Sans',sans-serif;font-size:1.4rem;color:var(--accent);}
+  .p-bar{width:84px;background:var(--surface2);border-radius:4px 4px 0 0;border:2px solid #333;}
+  .podium-block.first .p-bar{height:105px;border-color:var(--accent);background:#f5c80018;}
+  .podium-block.second .p-bar{height:68px;border-color:#999;}
+  .podium-block.third .p-bar{height:44px;border-color:#b87333;}
+  .lb{width:100%;max-width:440px;}
+  .lb-row{display:flex;align-items:center;justify-content:space-between;padding:.45rem .9rem;background:var(--surface);border-radius:8px;margin-bottom:.3rem;font-weight:600;}
+  .lb-rank{font-family:'Space Mono',monospace;color:var(--muted);width:1.8rem;}
+  .lb-pts{font-family:'Black Han Sans',sans-serif;font-size:1.15rem;color:var(--accent);}
+  .flash{position:fixed;inset:0;pointer-events:none;z-index:100;opacity:0;transition:opacity .15s;}
+  .flash.correct{background:var(--accent3);}
+  .flash.wrong{background:var(--accent2);}
+  .toast{position:fixed;bottom:1.5rem;left:50%;transform:translateX(-50%) translateY(120%);background:var(--surface2);border:2px solid var(--accent);border-radius:8px;padding:.55rem 1.3rem;font-family:'Space Mono',monospace;font-size:.8rem;color:var(--accent);z-index:200;transition:transform .4s cubic-bezier(.34,1.56,.64,1);max-width:88vw;text-align:center;}
+  .toast.show{transform:translateX(-50%) translateY(0);}
+  @media(max-width:640px){#s-q{padding:.75rem;}.answers-grid{grid-template-columns:1fr;}}
+</style>
+</head>
+<body>
+<div class="flash" id="flash"></div>
+<div class="toast" id="toast"></div>
+
+<div class="screen active" id="s-land">
+  <div class="land-inner">
+    <div class="game-title">ESCAPE THE<br>SMART ROOM</div>
+    <div class="game-sub">Remote Team Trivia · Americas Edition</div>
+    <button class="btn btn-primary" onclick="showScreen('s-setup')">SET UP GAME →</button>
+  </div>
+</div>
+
+<div class="screen" id="s-setup">
+  <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1.25rem;min-height:100vh;padding:2rem;">
+    <div style="font-family:'Black Han Sans',sans-serif;font-size:1.8rem;color:var(--accent);">GAME SETUP</div>
+    <div class="setup-card">
+      <div class="setup-label">Firebase Config</div>
+      <div class="config-hint">
+        <strong>apiKey:</strong><input class="config-input" id="cfg-apiKey" placeholder="AIzaSy..." />
+        <strong>databaseURL:</strong><input class="config-input" id="cfg-dbURL" placeholder="https://your-project-default-rtdb.firebaseio.com" />
+        <strong>projectId:</strong><input class="config-input" id="cfg-projectId" placeholder="your-project-id" />
+      </div>
+    </div>
+    <div class="setup-card">
+      <div class="setup-label">Questions per game</div>
+      <div class="q-count-row">
+        <span class="q-count-label">Draw</span>
+        <button class="q-count-btn" id="qc10" onclick="setQCount(10)">10</button>
+        <button class="q-count-btn" id="qc20" onclick="setQCount(20)">20</button>
+        <button class="q-count-btn active" id="qc30" onclick="setQCount(30)">30</button>
+        <button class="q-count-btn" id="qc70" onclick="setQCount(70)">ALL 70</button>
+        <span class="q-count-label">randomly from the bank</span>
+      </div>
+    </div>
+    <div class="setup-card">
+      <div class="setup-label">Players</div>
+      <div class="input-row">
+        <input class="txt-input" id="nameInput" placeholder="Player name..." maxlength="20" onkeydown="if(event.key==='Enter')addPlayer()" />
+        <button class="add-btn" onclick="addPlayer()">+ ADD</button>
+      </div>
+      <div class="players-wrap" id="playersWrap">
+        <span style="color:#444;font-family:'Space Mono',monospace;font-size:.78rem;">No players yet...</span>
+      </div>
+    </div>
+    <div style="display:flex;gap:.75rem;flex-wrap:wrap;justify-content:center;">
+      <button class="btn btn-secondary btn-sm" onclick="showScreen('s-land')">Back</button>
+      <button class="btn btn-primary" onclick="goToLobby()">OPEN LOBBY</button>
+    </div>
+    <p style="font-family:'Space Mono',monospace;font-size:.72rem;color:#444;text-align:center;max-width:420px;">70-question bank · random selection each game · players answer on their phones</p>
+  </div>
+</div>
+
+<div class="screen" id="s-lobby">
+  <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1.25rem;min-height:100vh;padding:2rem;">
+    <div style="font-family:'Space Mono',monospace;font-size:.78rem;letter-spacing:3px;color:var(--muted);text-transform:uppercase;text-align:center;">Players open player.html and enter this code</div>
+    <div class="room-code" id="roomCodeDisplay">----</div>
+    <div class="join-instruction" id="joinInstruction">Share the player URL with your team</div>
+    <div style="font-family:'Space Mono',monospace;font-size:.72rem;letter-spacing:2px;color:var(--muted);"><span class="pulse-dot"></span>Waiting for players...</div>
+    <div class="lobby-players" id="lobbyPlayers"></div>
+    <div style="display:flex;gap:.75rem;flex-wrap:wrap;justify-content:center;">
+      <button class="btn btn-secondary btn-sm" onclick="showScreen('s-setup')">Back</button>
+      <button class="btn btn-primary" onclick="startGame()">START GAME</button>
+    </div>
+  </div>
+</div>
+
+<div class="screen" id="s-q">
+  <div class="q-header">
+    <div class="q-counter" id="qCounter">Q 1 / 30</div>
+    <div class="q-cat" id="qCat">Category</div>
+    <div class="q-timer" id="qTimer">20</div>
+  </div>
+  <div class="tbar-wrap"><div class="tbar" id="tbar"></div></div>
+  <div class="host-wrap">
+    <div class="host-avatar">🎙️</div>
+    <div class="host-bubble">
+      <div class="host-name">SCHMITTY</div>
+      <div id="hostText">Alright, let's see what you're actually made of...</div>
+    </div>
+  </div>
+  <div class="q-text" id="qText"></div>
+  <div class="answers-grid" id="answersGrid"></div>
+  <div class="scoreboard" id="scoreboard"></div>
+  <div class="bottom-bar">
+    <div class="kbd-hint" id="kbdHint">Waiting for players to answer...</div>
+    <button class="btn btn-primary btn-sm" id="nextBtn" onclick="nextQuestion()" style="display:none;">NEXT</button>
+  </div>
+</div>
+
+<div class="screen" id="s-results">
+  <div class="final-title">GAME OVER,<br>NERDS.</div>
+  <div class="podium" id="podium"></div>
+  <div class="lb" id="lb"></div>
+  <button class="btn btn-primary" onclick="resetGame()" style="margin-top:.5rem;">PLAY AGAIN</button>
+</div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getDatabase, ref, set, onValue, update } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+
+// ══════════════════════════════════════════════════
+//  70-QUESTION BANK — no emojis on answer options
+// ══════════════════════════════════════════════════
+const ALL_QUESTIONS = [
+
+  // ── FOOD CRIMES (10) ──
+  {cat:"FOOD CRIMES",q:"Pineapple on pizza: which country actually invented this controversial topping?",a:["Italy","USA","Canada","Brazil"],c:2,t:18,snark:["Wait... CANADA did this to us?!","Yes. Sam Panopoulos. Greek-Canadian. We're complicated.","Canada: hockey, poutine, and the world's most divisive pizza topping.","The Italians are still processing this information."]},
+  {cat:"FOOD CRIMES",q:"What is the surprising main ingredient in traditional Mexican mole negro sauce?",a:["Coffee","Chocolate","Avocado","Jalapeno"],c:1,t:16,snark:["Chocolate in savory sauce? Sounds weird. Tastes incredible.","If you answered avocado you've been to too many bad Tex-Mex places.","Mole negro can have up to 30 ingredients. Your 5-ingredient salsa does not compare.","The Aztecs invented chocolate. Mexico takes the W."]},
+  {cat:"FOOD CRIMES",q:"What Canadian delicacy is made of french fries, cheese curds, and gravy?",a:["Beaver tails","Pouding chomeur","Poutine","Tourtiere"],c:2,t:14,snark:["POUTINE. The answer is always poutine when Canada is involved.","If you got this wrong you've been banned from Montreal.","Cheese CURDS. Not shredded. Not sliced. CURDS. It matters.","Quebec: Canada's answer to every gastronomic question."]},
+  {cat:"FOOD CRIMES",q:"Which of these is a real popular street food across Latin America — not something we invented?",a:["Elote: grilled corn with mayo","Anticuchos: beef heart skewers","Chicharron: fried pork skin","All of them are real"],c:3,t:20,snark:["ALL OF THEM. Latin American street food doesn't play.","Yes, beef heart skewers. Tastes amazing. Stop being weird about it.","Elote is elite. Anticuchos are iconic. Chicharron is life.","If you only know tacos from Taco Bell, we have so much work to do."]},
+  {cat:"FOOD CRIMES",q:"Which country invented dulce de leche — that caramel-like spread that goes on everything?",a:["Mexico","Argentina","Colombia","France"],c:1,t:18,snark:["Argentina! And they will absolutely fight you if you say otherwise.","It was literally discovered by accident. A pot of milk and sugar left unattended. A nation was born.","Colombia makes excellent food but dulce de leche? That crown belongs to Buenos Aires.","France has creme brulee. Argentina has dulce de leche. Both empires are correct."]},
+  {cat:"FOOD CRIMES",q:"Ceviche — raw fish cured in citrus juice — is considered the national dish of which country?",a:["Mexico","Chile","Peru","Ecuador"],c:2,t:16,snark:["Peru! And Peru is very serious about this. There is literally a National Ceviche Day.","Mexico has incredible ceviche but Peru got there first and wrote the rules.","Ecuador also makes excellent ceviche but Peru holds the national pride trademark.","Chile's ceviche is great. Peru's ceviche is a cultural institution. Different categories."]},
+  {cat:"FOOD CRIMES",q:"What percentage of the world's avocados are produced in Mexico?",a:["About 15 percent","About 32 percent","About 50 percent","About 70 percent"],c:1,t:20,snark:["About 32 percent! Mexico produces nearly a third of all the world's avocados. Your guacamole owes them.","The state of Michoacan alone produces most of them. One state. Feeding the world's brunch habit.","50 percent would mean Mexico is basically the only country doing this. They're dominant, not monopolistic.","70 percent would mean every avocado toast is a geopolitical statement. Which honestly it kind of is."]},
+  {cat:"FOOD CRIMES",q:"What is a Nanaimo bar and where does it come from?",a:["A chocolate wafer dessert from British Columbia","A type of sushi from Japan","A rum cocktail from the Caribbean","A cookie from the Philippines"],c:0,t:18,snark:["A no-bake chocolate layered bar from Nanaimo, BC. Canada's sweetest flex.","It has a wafer base, custard middle, and chocolate top. No baking required. Pure genius.","Japan has mochi. Canada has Nanaimo bars. Both are correct decisions.","Named after an actual city. Nanaimo, British Columbia. The city is extremely proud of this."]},
+  {cat:"FOOD CRIMES",q:"What is the national dish of Canada according to most Canadians?",a:["Poutine","Butter tarts","Back bacon","Nanaimo bars"],c:0,t:15,snark:["POUTINE. Cheese curds make another appearance and nobody is surprised.","Butter tarts are incredible and deeply Canadian but poutine is the national identity.","Back bacon is what Americans call 'Canadian bacon.' Canadians find this situation exhausting.","Nanaimo bars: a true Canadian icon but not the national dish. Yet."]},
+  {cat:"FOOD CRIMES",q:"In Mexico, what is 'agua fresca' typically made from?",a:["Sparkling mineral water with lime","Fruit, water, and sugar","Fermented corn drink","Cactus juice and chili"],c:1,t:16,snark:["Fruit, water, and sugar. Refreshing, beautiful, and available on every corner. Respect it.","Sparkling water with lime is very good but that's a different product entirely.","You're thinking of tepache for fermented corn. Agua fresca is the gentle cousin.","Cactus juice is a real thing but that's not this. Do not confuse them at a food stall."]},
+
+  // ── POP NONSENSE (10) ──
+  {cat:"POP NONSENSE",q:"Which K-pop group has seven members and has sold more albums than some countries have GDP?",a:["EXO","BTS","BLACKPINK","SEVENTEEN"],c:1,t:15,snark:["BTS. Do not @ the ARMY if you got this wrong.","Seven members. Billions of streams. One fandom that will find you.","BTS's economic impact on South Korea is studied by actual economists.","Not wrong about BLACKPINK's bops. Very wrong about this question."]},
+  {cat:"POP NONSENSE",q:"The Weeknd is from which Canadian city?",a:["Vancouver","Toronto","Montreal","Calgary"],c:1,t:16,snark:["Toronto. The 6ix. Drake's city. Also The Weeknd's city.","Toronto has produced an unreasonable amount of global music talent.","Abel Tesfaye, from Scarborough, Toronto. Canada stays winning.","If you said Vancouver you're thinking of a completely different vibe."]},
+  {cat:"POP NONSENSE",q:"Shakira's hips famously don't lie. She is from which country?",a:["Venezuela","Colombia","Argentina","Spain"],c:1,t:15,snark:["Colombia! Barranquilla basically has a public holiday for her.","If you said Spain you're confusing your S-names. Understandable. Still wrong.","Shakira speaks six languages. You were just challenged by four options.","Shakira, Shakira."]},
+  {cat:"POP NONSENSE",q:"Netflix's global smash 'Squid Game' is set in which country?",a:["Japan","China","South Korea","Taiwan"],c:2,t:12,snark:["South Korea. If you got this wrong after watching it, explain yourself.","Korean content is dominating global streaming. Take notes, Hollywood.","The green tracksuit sold out worldwide. We are a predictable species.","456 contestants, children's games, and the whole planet watched."]},
+  {cat:"POP NONSENSE",q:"Which of these is NOT a real telenovela title — we made one up?",a:["El cuerpo del deseo","La que no podia amar","Amor de Silencio Roto","Pasion de gavilanes"],c:2,t:20,snark:["'Amor de Silencio Roto' — fabricated. The rest? Absolutely real.","Telenovela titles are an art form. Unhinged, committed, gorgeous.","Watched even one telenovela? You knew exactly which was fake.","Telenovelas export to 100 plus countries. Drama is the universal language."]},
+  {cat:"POP NONSENSE",q:"Bad Bunny is from which country?",a:["Mexico","Dominican Republic","Puerto Rico","Cuba"],c:2,t:14,snark:["Puerto Rico! Benito Antonio Martinez Ocasio, from Vega Baja. A whole empire from one island.","Bad Bunny has broken streaming records multiple years in a row. Puerto Rico stays winning.","Mexico has incredible artists but Bad Bunny is Puerto Rico's gift to the world.","The Dominican Republic has given us so much music. Bad Bunny is not from there though."]},
+  {cat:"POP NONSENSE",q:"Which Canadian artist released the album 'After Hours' featuring 'Blinding Lights'?",a:["Drake","Justin Bieber","The Weeknd","Celine Dion"],c:2,t:14,snark:["The Weeknd! 'Blinding Lights' was the most streamed song of the 2020s. No debate.","Drake is many things. The artist behind Blinding Lights is not one of them.","Justin Bieber is also Canadian but he did not make After Hours. Different vibe entirely.","Celine Dion is a Canadian icon but After Hours belongs to Abel. Always."]},
+  {cat:"POP NONSENSE",q:"The viral dance 'Macarena' was originally performed by which musical duo?",a:["Ricky Martin feat. Marc Anthony","Los Del Rio","Enrique Iglesias","Menudo"],c:1,t:18,snark:["Los Del Rio! A Spanish duo. The song came out in 1993. It never really left.","The Macarena was originally a flamenco-pop song before it became a cultural weapon at every wedding.","Ricky Martin performed a remix at the Olympics. Still not the original.","Menudo was Ricky Martin's early group. Not related to the Macarena. Very different situation."]},
+  {cat:"POP NONSENSE",q:"Netflix's 'Narcos' is set in Colombia — but who actually produced it?",a:["It is a US production","It is a Colombian production","It is a co-production between both","It is a Brazilian production"],c:0,t:20,snark:["Narcos is American-produced — filmed in Colombia, based on Colombian history, made in LA.","It FEELS Colombian because it's set and shot there. That was the trick.","'Narcos: Mexico' came later. Different cartel, same Netflix energy.","This was a deliberate gotcha. You're welcome."]},
+  {cat:"POP NONSENSE",q:"Which streaming platform is home to the Spanish-language show 'La Casa de Papel' known as Money Heist?",a:["HBO","Amazon Prime","Disney Plus","Netflix"],c:3,t:12,snark:["Netflix! One of the most watched non-English shows in Netflix history.","Money Heist ran 5 seasons and spawned a Korean remake. Spanish TV said 'we're going global.'","La Casa de Papel started on Spanish TV, flopped, got picked up by Netflix, then conquered the world. Good arc.","HBO has prestige TV. Netflix has Money Heist. Both correct decisions for different reasons."]},
+
+  // ── WHERE IN THE WORLD (10) ──
+  {cat:"WHERE IN THE WORLD",q:"Brazil is the largest country in South America. What is the second largest?",a:["Colombia","Peru","Argentina","Chile"],c:2,t:18,snark:["Argentina! Home of steak, Messi, and existential literature.","Chile is long and thin, like a baguette that went too far south.","Peru is MASSIVE and doesn't get enough credit. Fix this.","Colombia is incredible but ranks 4th. These rankings feel personal."]},
+  {cat:"WHERE IN THE WORLD",q:"Canada has more lakes than all other countries combined. Approximately how many?",a:["6 thousand","60 thousand","600 thousand plus","It is a lake not a competition"],c:2,t:18,snark:["Over 600 thousand lakes. Canada hoarding fresh water like a champion.","60 percent of the world's lakes are in Canada. Sixty. Percent.","Americans go to Niagara Falls and think they understand Canadian water. They don't.","It's always a competition when you win."]},
+  {cat:"WHERE IN THE WORLD",q:"What is the capital of Canada?",a:["Toronto","Montreal","Vancouver","Ottawa"],c:3,t:15,snark:["OTTAWA. Not Toronto. Toronto is still very important though.","Most confidently wrong answer in Canadian trivia. Always Toronto. Always wrong.","Ottawa: Parliament, the Rideau Canal, mild international confusion.","Vancouver is stunning. Montreal is delicious. Ottawa is the capital."]},
+  {cat:"WHERE IN THE WORLD",q:"The Amazon River flows through Brazil, but which country does it originate in?",a:["Bolivia","Colombia","Ecuador","Peru"],c:3,t:20,snark:["Peru! The Ucayali and Maranon rivers form the Amazon. Geography is cool.","Brazil gets all the Amazon credit. Peru respectfully disagrees.","The Amazon is about 6400 km long. That's walking New York to Berlin.","Ecuador was reasonable. The equator does run through it. Still no."]},
+  {cat:"WHERE IN THE WORLD",q:"What is the longest country in the world from north to south?",a:["Russia","Brazil","China","Chile"],c:3,t:20,snark:["Chile! 4300 km from top to bottom. It's basically a country that fell sideways.","Russia is largest by area but Chile wins north-to-south by being unreasonably skinny and tall.","Brazil is enormous but not thin enough to win this. Chile is in its own category.","Chile spans desert, wine country, Patagonia, and Antarctic territory. A full journey in one country."]},
+  {cat:"WHERE IN THE WORLD",q:"The Galapagos Islands, famous for inspiring Darwin's theory of evolution, belong to which country?",a:["Peru","Chile","Ecuador","Colombia"],c:2,t:16,snark:["Ecuador! The islands are about 1000 km off the Ecuadorian coast. Darwin said thank you.","Peru has Machu Picchu. Ecuador has the Galapagos. Both countries overachieving geographically.","Chile has Easter Island which is similarly dramatic. Galapagos goes to Ecuador though.","Colombia has incredible biodiversity on the mainland. The Galapagos belong to Ecuador."]},
+  {cat:"WHERE IN THE WORLD",q:"What is the only South American country with coastlines on both the Pacific and Caribbean slash Atlantic?",a:["Brazil","Peru","Venezuela","Colombia"],c:3,t:22,snark:["Colombia! Pacific coast on the west, Caribbean coast on the north. Two oceans, one country.","Brazil only touches the Atlantic. Enormous Atlantic coastline, zero Pacific access.","Peru is entirely Pacific coast. No Atlantic for Peru.","Venezuela touches the Caribbean but not the Pacific. Colombia wins this geography flex."]},
+  {cat:"WHERE IN THE WORLD",q:"Which Canadian province is the only officially bilingual province in French and English?",a:["Quebec","Ontario","Manitoba","New Brunswick"],c:3,t:20,snark:["New Brunswick! Quebec is majority French but New Brunswick is the only officially bilingual province.","Quebec is the cultural heartbeat of French Canada but it's officially French, not bilingual.","Ontario has a significant Francophone population but official bilingualism goes to New Brunswick.","New Brunswick: quietly holding the linguistic middle ground of Canada since 1969."]},
+  {cat:"WHERE IN THE WORLD",q:"Which US city has the largest Mexican-born population outside of Mexico itself?",a:["San Antonio","Houston","Los Angeles","Chicago"],c:2,t:18,snark:["Los Angeles! More Mexican-born residents than any city outside Mexico itself.","Houston is one of the most diverse cities in the US but LA takes this one.","San Antonio has deeply rooted Mexican-American culture but LA has the raw numbers.","Chicago has a significant Mexican community in Pilsen and Little Village. Still not LA."]},
+  {cat:"WHERE IN THE WORLD",q:"Roughly what percentage of the world's population lives in the Western Hemisphere — North and South America combined?",a:["About 5 percent","About 13 percent","About 28 percent","About 42 percent"],c:1,t:20,snark:["Only about 13 percent! The Americas are enormous landmasses with relatively few people.","Western Hemisphere equals 42 percent of Earth's land but only 13 percent of its people. Lots of space.","Asia alone has about 60 percent of the world's population. The Americas are humbled.","If you said 42 percent you were thinking of land mass. A forgivable mistake."]},
+
+  // ── HISTORY CLASS DROPOUT (10) ──
+  {cat:"HISTORY CLASS DROPOUT",q:"The Aztec capital Tenochtitlan was built on a lake island. What city stands there now?",a:["Guadalajara","Monterrey","Mexico City","Puebla"],c:2,t:18,snark:["Mexico City — built on the old lake bed. Mind-blowing engineering.","Tenochtitlan was one of the world's largest cities in the 1400s.","Mexico City still sinks slightly every year. Fun structural legacy!","If you said Guadalajara you clearly haven't seen Mexico City's metro map."]},
+  {cat:"HISTORY CLASS DROPOUT",q:"Which is the oldest university in the Americas?",a:["Harvard","Universidad Nacional Mayor de San Marcos in Peru","McGill in Canada","Yale"],c:1,t:20,snark:["PERU. San Marcos founded 1551. Harvard: 1636. America learned things late.","Harvard has excellent PR. San Marcos has seniority. Different things.","The Americas had a university when Shakespeare was still being born.","McGill is great. Founded 1821. San Marcos: 1551. Canada also arrived late."]},
+  {cat:"HISTORY CLASS DROPOUT",q:"Canada officially became a country through Confederation in what year?",a:["1776","1867","1901","1931"],c:1,t:18,snark:["1867! Canada is 91 years younger than the USA and much more chill about it.","1776 is the USA's year. Canada watched and said 'we're fine, thanks.'","1931 is full legislative independence from Britain. Different milestone.","July 1 vs July 4. Three days of fireworks across North America, basically."]},
+  {cat:"HISTORY CLASS DROPOUT",q:"The Mexican holiday Dia de los Muertos is a celebration of what?",a:["Fearing death","Honoring deceased loved ones","Defeating a historical enemy","The harvest season"],c:1,t:16,snark:["Honoring ancestors! Joyful and beautiful. Stop comparing it to Halloween.","An indigenous Aztec tradition blended with Catholic influences. Layers.","If you answered 'fearing death' you've watched too many horror movies.","The marigolds, the ofrendas, the food offerings — it's love, not dread."]},
+  {cat:"HISTORY CLASS DROPOUT",q:"Which Latin American country was the first to grant women the right to vote?",a:["Argentina","Mexico","Ecuador","Brazil"],c:2,t:20,snark:["Ecuador! In 1929. Decades before many so-called advanced nations. History is humbling.","Argentina granted women the vote in 1947 under Evita's influence. Important but not first.","Brazil followed in 1932. Still ahead of many countries but Ecuador was first.","Mexico didn't grant women full voting rights until 1953. A painful wait."]},
+  {cat:"HISTORY CLASS DROPOUT",q:"The Panama Canal connects which two bodies of water?",a:["Atlantic and Indian Ocean","Pacific and Arctic Ocean","Atlantic and Pacific Ocean","Pacific and Indian Ocean"],c:2,t:12,snark:["Atlantic and Pacific! One of the greatest engineering feats in human history. Ships said thank you.","The canal saves ships from sailing around the entire continent of South America. About 15000 km saved.","The Arctic is not involved. No canal reaches the Arctic. Yet.","The Indian Ocean is elsewhere. The Panama Canal is connecting the two you already knew."]},
+  {cat:"HISTORY CLASS DROPOUT",q:"Simon Bolivar is known as El Libertador. How many countries did he help liberate from Spanish rule?",a:["Two","Four","Six","Eight"],c:2,t:20,snark:["Six! Venezuela, Colombia, Ecuador, Peru, Bolivia, and Panama. The man was busy.","Bolivia is literally named after him. That's the level of legacy we're talking about.","Four would be an impressive career for most people. Bolivar was not most people.","Eight would mean he got Argentina and Chile too. He tried to unite them all. Didn't quite get there."]},
+  {cat:"HISTORY CLASS DROPOUT",q:"Which ancient civilization built Machu Picchu?",a:["Aztec","Maya","Inca","Olmec"],c:2,t:13,snark:["The Inca! Built around 1450 AD at 2430 meters above sea level. Casual engineering.","The Aztec Empire was in Mexico. Machu Picchu is in Peru. Different civilizations, different mountains.","The Maya were extraordinary but their heartland was Mexico and Central America, not Peru.","The Olmec were the earliest major civilization in Mexico. Machu Picchu belongs to the Inca."]},
+  {cat:"HISTORY CLASS DROPOUT",q:"Which city hosted the very first FIFA World Cup in 1930?",a:["Buenos Aires","Rio de Janeiro","Montevideo","Mexico City"],c:2,t:18,snark:["Montevideo, Uruguay — and Uruguay won it. At home. Obviously.","Argentina didn't host but made the final. Of course they did.","Rio hosts many magnificent things. The first World Cup wasn't one of them.","Mexico City hosted in 1970 and 1986. Different era."]},
+  {cat:"HISTORY CLASS DROPOUT",q:"Which country has won the most FIFA World Cups in history?",a:["Germany","Argentina","Italy","Brazil"],c:3,t:15,snark:["Brazil! Five World Cup titles. No other country is close.","Argentina has three now after 2022. Messi finally got his. The world exhaled.","Germany and Italy both have four. Excellent. Still not Brazil.","Brazil: 1958, 1962, 1970, 1994, 2002. Five times. The Selecao doesn't need introduction."]},
+
+  // ── RANDOM NONSENSE (10) ──
+  {cat:"RANDOM NONSENSE",q:"What does GIF technically stand for?",a:["Graphic Interface Format","Graphics Interchange Format","General Image File","It is pronounced JIF and I will not be taking questions"],c:1,t:18,snark:["Graphics Interchange Format. The inventor said 'JIF.' He was wrong.","You can be right about the format and wrong about the pronunciation.","GIF wars: uniting all cultures in completely pointless argument since 1987.","Created in 1987. Still causing fights. Impressive legacy."]},
+  {cat:"RANDOM NONSENSE",q:"On average, how many times does a person laugh per day?",a:["3 to 5 times","8 to 10 times","15 to 17 times","Depends entirely on their meeting schedule"],c:2,t:18,snark:["15 to 17 times! Whether awkward work laughs count is unclear.","If your answer was 'depends on meetings' — we felt that.","Children laugh 300 plus times a day. Adults: 15 to 17. Something happened.","This is why team trivia exists. Boosting the average right now."]},
+  {cat:"RANDOM NONSENSE",q:"Which animal native to Canada was thought mythical by many Europeans?",a:["Moose","Wolverine","Platypus","Sasquatch"],c:0,t:18,snark:["Moose! Europeans thought Indigenous accounts of them were tall tales.","Wolverines are real! Also Canadian! The X-Men was not being subtle.","Platypus is Australian — also thought a hoax by Europeans. Zoology is wild.","Sasquatch remains unconfirmed. We are not taking further questions."]},
+  {cat:"RANDOM NONSENSE",q:"What language has the most native speakers worldwide?",a:["English","Spanish","Hindi","Mandarin Chinese"],c:3,t:16,snark:["Mandarin! About 920 million native speakers. English doesn't crack the top 3.","English is the most spoken second language. Native speakers? Mandarin wins.","Spanish has about 475 million native speakers. The Americas and Spain represent!","If you bet on English you're making assumptions. Relatable. Wrong."]},
+  {cat:"RANDOM NONSENSE",q:"What does WiFi actually stand for?",a:["Wireless Fidelity","Wireless Frequency Interface","Wide Field Internet","It doesn't stand for anything"],c:3,t:20,snark:["It doesn't stand for anything! It's a made-up brand name invented by a marketing firm in 1999.","'Wireless Fidelity' is what everyone assumes. The WiFi Alliance made that up retroactively. We've been lied to.","The name was chosen because it rhymed with HiFi. That's it. That's the whole story.","You've been confidently explaining what WiFi stands for at parties and you were wrong. We're sorry."]},
+  {cat:"RANDOM NONSENSE",q:"Which planet in our solar system has the most moons?",a:["Jupiter","Saturn","Uranus","Neptune"],c:1,t:18,snark:["Saturn! As of 2023, Saturn has 146 confirmed moons. Jupiter has been dethroned. Dramatic.","Jupiter held the record for decades with 95 moons. Then Saturn pulled ahead. Space is petty.","Uranus has 27 moons, all named after Shakespeare characters. An underrated flex.","Neptune has 16 moons. Beautiful planet. Losing the moon count competition badly."]},
+  {cat:"RANDOM NONSENSE",q:"The hashtag symbol was originally called what?",a:["The pound sign","The octothorpe","The number sign","All of the above"],c:3,t:18,snark:["ALL OF THE ABOVE. Pound, octothorpe, hash, number sign. It contains multitudes.","'Octothorpe' is real and was coined by Bell Labs engineers in the 1960s. Magnificent word.","It took Twitter to make it 'hashtag' in 2007. Before that: just the thing before your voicemail password.","The pound sign, the hash, the number sign — one symbol, a lifetime of identity crises."]},
+  {cat:"RANDOM NONSENSE",q:"What percentage of Earth's surface is covered by the Pacific Ocean alone?",a:["23 percent","30 percent","35 percent","46 percent"],c:2,t:20,snark:["About 35 percent! The Pacific alone covers more than all of Earth's landmasses combined. Let that sink in.","30 percent is the percentage of Earth covered by ALL land. The Pacific is bigger than that.","46 percent would be more than all other oceans combined. The Pacific is enormous, not imperial.","The Pacific is so big you could fit every continent inside it and still have room. Terrifying."]},
+  {cat:"RANDOM NONSENSE",q:"Which of these is genuine slang from a real country?",a:["Ser un queso in Argentina meaning to be cool","Raining cats in the UK meaning a light drizzle","On se fait la malle in France meaning we are leaving","Chupar el mango in Colombia meaning to overthink"],c:2,t:22,snark:["'On se fait la malle' — real French slang for 'we're out of here.' Very chic.","'Ser un queso' in Argentina actually means to be BAD at something. Fake definition.","Slang is where languages get interesting and linguists get headaches.","Every language has 47 ways to say you're leaving a party. Universal human experience."]},
+  {cat:"RANDOM NONSENSE",q:"How many time zones does Canada have?",a:["Four","Five","Six","Seven"],c:2,t:18,snark:["Six! From Newfoundland Time to Pacific Time. Newfoundland even has a half-hour offset. Of course it does.","Canada is the second largest country in the world. Four time zones would not be enough.","Five is close but you're forgetting Newfoundland, which insists on doing things its own way.","Seven would mean Canada has more time zones than Russia, which has 11. Canada is enormous, not that enormous."]},
+
+  // ── LOST IN TRANSLATION (10) ──
+  {cat:"LOST IN TRANSLATION",q:"The Chevrolet Nova reportedly struggled in Latin America. According to legend, why?",a:["Nova means does not go in Spanish","The logo looked like a rude gesture","Nova translates to boring in Portuguese","It was confused with a local funeral brand"],c:0,t:18,snark:["'No va' means 'doesn't go' in Spanish. GM shipped thousands of cars named 'won't move' into Spanish markets.","Linguists debate whether this actually hurt sales — but the story is too good and too famous to cut.","The logo theory is creative. Wrong, but creative.","The funeral brand option is the kind of thing that only sounds plausible because the real answer is equally absurd."]},
+  {cat:"LOST IN TRANSLATION",q:"The Pepsi slogan 'Come Alive with the Pepsi Generation' was reportedly translated into Chinese as what?",a:["Pepsi will wake your ancestors from the dead","Pepsi brings your relatives back from the grave","Pepsi makes you feel young again","Pepsi is the drink of the living"],c:1,t:20,snark:["'Pepsi brings your relatives back from the grave.' A bold promise for a soft drink.","Marketing legend, possibly exaggerated — but the translation issue was real enough to be documented.","'Makes you feel young again' would have been fine. Instead: ancestor resurrection. Different direction.","Pepsi later hired better translators. The ancestors remain unavailable for comment."]},
+  {cat:"LOST IN TRANSLATION",q:"What does 'sobremesa' mean in Spanish — a concept that has no direct English translation?",a:["A nap taken immediately after lunch","The time spent talking after a meal","A second dessert served with coffee","The feeling of missing someone who is still present"],c:1,t:20,snark:["The time spent talking after a meal. Latin cultures consider this sacred. Leaving early is a social crime.","'Sobremesa' literally means 'over the table.' The English language simply does not have this concept.","'A nap after lunch' — you're thinking of siesta. Different sacred tradition.","Missing someone present is 'saudade' in Portuguese. Different beautiful untranslatable word."]},
+  {cat:"LOST IN TRANSLATION",q:"In Japanese, 'karoshi' is a word that has entered global business vocabulary. What does it mean?",a:["Working from home","Death from overwork","A mandatory vacation policy","The feeling of Sunday night dread"],c:1,t:18,snark:["Death from overwork. Japan recognized this as a cause of death in the 1970s. It is now a global concept.","'Karoshi' entered international business conversations because it became an actual documented phenomenon.","Working from home in Japanese is just borrowed English. 'Karoshi' is the darker concept.","Sunday night dread is universal but has not yet been formalized into a single word. Give it time."]},
+  {cat:"LOST IN TRANSLATION",q:"What does 'madrugada' refer to in Spanish that English struggles to name precisely?",a:["A very intense afternoon thunderstorm","The hours between midnight and dawn","A feeling of homesickness for a place you've never been","The last day before a long holiday"],c:1,t:18,snark:["The hours between midnight and dawn. 'Madrugada' is that specific liminal time. English just says 'middle of the night' and gives up.","Spanish and Portuguese cultures find it important enough to name separately from 'noche.' English disagrees.","Homesickness for a place you've never been is 'hiraeth' in Welsh. Different beautiful word.","The last day before a holiday is just called Friday in most cultures."]},
+  {cat:"LOST IN TRANSLATION",q:"The word 'saudade' in Portuguese describes a feeling that is notoriously hard to translate. What is it closest to?",a:["Intense joy at an unexpected reunion","A deep longing for something or someone absent","Pride in one's cultural heritage","Satisfaction after completing a long project"],c:1,t:20,snark:["A deep longing for something absent — and the bittersweet pleasure of that longing itself. Untranslatable on purpose.","'Saudade' is sometimes called the soul of Portuguese and Brazilian culture. It's more than nostalgia.","Pride in heritage is a real feeling but it has plenty of translations. Saudade is more complicated than that.","Satisfaction after finishing a project is just called relief. Not poetic enough for its own word."]},
+  {cat:"LOST IN TRANSLATION",q:"In Canada, what does a person mean when they say something is 'just up the road' in rural areas?",a:["It is within walking distance","It could be anywhere from 5 to 200 kilometers away","It is the next house over","It is a 10 minute drive"],c:1,t:18,snark:["Anywhere from 5 to 200 kilometers. Canadian rural distance perception is a documented phenomenon. Prepare accordingly.","'Just up the road' has ended many friendships between urban visitors and rural hosts.","Walking distance would imply it's close. It is not close. It is never close.","A 10 minute drive would be a polite underestimate. Add at least an hour and a tank of gas."]},
+  {cat:"LOST IN TRANSLATION",q:"What does it mean when a Mexican says something will happen 'ahorita'?",a:["Right now, immediately","Sometime today probably","Maybe now, maybe later, maybe never","In exactly one hour"],c:2,t:18,snark:["Maybe now, maybe later, maybe never. 'Ahorita' exists in a quantum state that English cannot contain.","'Ahorita' is technically a diminutive of 'ahora' meaning now. In practice it is a vibe, not a time.","Right now would be 'ya' or 'ahora mismo.' Ahorita is its own philosophical position on time.","In exactly one hour — that level of precision is not what ahorita is about. Ahorita is free."]},
+  {cat:"LOST IN TRANSLATION",q:"The Danish concept of 'hygge' became globally trendy. What does it most accurately describe?",a:["A minimalist approach to interior design","A cozy feeling of comfort and togetherness","A strict work-life balance philosophy","A type of traditional Danish pastry ritual"],c:1,t:18,snark:["A cozy feeling of comfort and togetherness. Candles, warm drinks, good company. Denmark's gift to winter.","'Hygge' got turned into a lifestyle brand by 2016. The Danes watched this happen with mild bewilderment.","Minimalist design is more Swedish than Danish. Hygge is about warmth, not clean lines.","The pastry angle is creative but no. Hygge is a feeling. A very marketable feeling, as it turned out."]},
+  {cat:"LOST IN TRANSLATION",q:"In Brazil, what does 'saudade' combined with the phrase 'matar a cobra e mostrar o pau' literally translate to?",a:["To do two difficult things at once","To kill the snake and show the stick","To finish a long journey safely","To prove your honesty with actions"],c:1,t:20,snark:["'To kill the snake and show the stick' — meaning to accomplish something AND prove you did it. A full commitment.","Brazilian Portuguese idioms are extremely literal and extremely committed and we respect that.","It does kind of mean doing two difficult things at once, but the literal image is much better.","The honesty interpretation is close in meaning but you lose the snake, and you cannot lose the snake."]},
+
+  // ── SUDDEN DEATH (2) ──
+  {cat:"SUDDEN DEATH",q:"FINAL QUESTION: If all of Italy's pasta was laid end-to-end around the equator, what would Italians say?",a:["Magnifico! A bold experiment!","How many kilometers exactly?","Basta! This disrespects pasta.","Now what — you have to eat it."],c:2,t:20,snark:["BASTA. Italians do not joke about pasta. This question was a hate crime.","The correct answer is the only correct answer. Pasta dignity is non-negotiable.","Italy produces 3.5 million tonnes of pasta per year. They have opinions.","No wrong answer here, but there is THE Italian answer. We respect it."]},
+  {cat:"SUDDEN DEATH",q:"FINAL QUESTION: A Canadian, a Mexican, and an American walk into a bar. Who pays?",a:["The American — loudest voice wins","The Canadian — they apologized for existing","The Mexican — they got there first and ordered for everyone","It goes to a 45-minute group discussion about splitting"],c:3,t:20,snark:["The 45-minute group discussion. It always goes to the group discussion. This is international collaboration.","The Canadian apologizing is a strong second place but they ultimately defer to the group process.","The American's loud voice is undercut by the arrival of the bill.","The Mexican getting there first and ordering for everyone is the most efficient outcome. Respect the system."]},
+];
+
+// ══════════════════════════════════════════════════
+//  RANDOM SELECTION — always ends with a Sudden Death
+// ══════════════════════════════════════════════════
+function pickQuestions(count) {
+  const nonSD = ALL_QUESTIONS.filter(q => q.cat !== "SUDDEN DEATH");
+  const sd    = ALL_QUESTIONS.filter(q => q.cat === "SUDDEN DEATH");
+  const shuffled = [...nonSD].sort(() => Math.random() - 0.5);
+  const pick = shuffled.slice(0, Math.min(count - 1, shuffled.length));
+  if (sd.length) pick.push(sd[Math.floor(Math.random() * sd.length)]);
+  return pick;
+}
+
+// ══════════════════════════════════════════════════
+//  APP STATE
+// ══════════════════════════════════════════════════
+const EMOJIS = ["🦊","🐼","🦄","🐸","🦁","🐙","🦋","🦜","🐬","🦀","🦩","🐧","🦝","🐻","🦖","🌮","🎸","🏄","🧠","⚡"];
+let db=null, roomCode='', players={}, gameQuestions=[], currentQ=0;
+let timerInterval=null, timeLeft=0, revealed=false, phase='setup';
+let answerCounts={}, playerAnswers={}, unsub=null, selectedQCount=30;
+
+window.showScreen = id => {
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+};
+function doFlash(type){const el=document.getElementById('flash');el.className=`flash ${type}`;el.style.opacity='.22';setTimeout(()=>el.style.opacity='0',350);}
+function toast(msg,dur=3000){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),dur);}
+
+let actx=null;
+function getACtx(){if(!actx)actx=new(window.AudioContext||window.webkitAudioContext)();return actx;}
+function playTone(freq,type,dur,vol=0.3,delay=0){const ctx=getACtx(),osc=ctx.createOscillator(),gain=ctx.createGain();osc.connect(gain);gain.connect(ctx.destination);osc.type=type;osc.frequency.value=freq;gain.gain.setValueAtTime(vol,ctx.currentTime+delay);gain.gain.exponentialRampToValueAtTime(0.001,ctx.currentTime+delay+dur);osc.start(ctx.currentTime+delay);osc.stop(ctx.currentTime+delay+dur);}
+const soundCorrect=()=>{playTone(523,'sine',.1,.4);playTone(659,'sine',.1,.4,.1);playTone(784,'sine',.25,.4,.2);};
+const soundWrong=()=>{playTone(200,'sawtooth',.3,.3);playTone(150,'sawtooth',.3,.3,.18);};
+const soundBuzz=()=>playTone(880,'square',.08,.25);
+const soundTick=()=>playTone(1200,'square',.04,.15);
+const soundTimesUp=()=>{playTone(300,'sawtooth',.4,.35);playTone(200,'sawtooth',.5,.35,.3);};
+const soundFanfare=()=>[523,659,784,1047].forEach((f,i)=>playTone(f,'sine',.3,.4,i*.15));
+
+window.setQCount=function(n){
+  selectedQCount=n;
+  document.querySelectorAll('.q-count-btn').forEach(b=>b.classList.remove('active'));
+  document.getElementById('qc'+n).classList.add('active');
+};
+
+window.addPlayer=function(){
+  const inp=document.getElementById('nameInput');
+  const name=inp.value.trim();if(!name)return;
+  const id='p'+Date.now();
+  players[id]={name,score:0,emoji:EMOJIS[Object.keys(players).length%EMOJIS.length]};
+  inp.value='';inp.focus();renderSetupPlayers();
+};
+window.removePlayer=id=>{delete players[id];renderSetupPlayers();};
+function renderSetupPlayers(){
+  const w=document.getElementById('playersWrap');
+  const entries=Object.entries(players);
+  w.innerHTML=entries.length
+    ?entries.map(([id,p])=>`<div class="p-chip">${p.emoji} ${p.name}<span class="p-chip-rm" onclick="removePlayer('${id}')">✕</span></div>`).join('')
+    :'<span style="color:#444;font-family:\'Space Mono\',monospace;font-size:.78rem;">No players yet...</span>';
+}
+
+function initFirebase(){
+  const apiKey=document.getElementById('cfg-apiKey').value.trim();
+  const dbURL=document.getElementById('cfg-dbURL').value.trim();
+  const projectId=document.getElementById('cfg-projectId').value.trim();
+  if(!apiKey||!dbURL||!projectId)return false;
+  try{const app=initializeApp({apiKey,databaseURL:dbURL,projectId},'trivia-'+Date.now());db=getDatabase(app);return true;}
+  catch(e){toast('Firebase config error — check your values');return false;}
+}
+
+window.goToLobby=function(){
+  if(!Object.keys(players).length){toast('Add at least one player first!');return;}
+  if(!initFirebase()){toast('Fill in your Firebase config first!');return;}
+  roomCode=Math.random().toString(36).substring(2,6).toUpperCase();
+  document.getElementById('roomCodeDisplay').textContent=roomCode;
+  document.getElementById('joinInstruction').textContent='Open player.html → enter code: '+roomCode;
+  set(ref(db,'games/'+roomCode),{phase:'lobby',currentQ:-1,players,answers:{}});
+  onValue(ref(db,'games/'+roomCode+'/players'),snap=>{if(snap.exists()){players=snap.val();renderLobbyPlayers();}});
+  showScreen('s-lobby');renderLobbyPlayers();
+};
+
+function renderLobbyPlayers(){
+  document.getElementById('lobbyPlayers').innerHTML=Object.values(players).map(p=>`<div class="lp-chip">${p.emoji} ${p.name}</div>`).join('');
+}
+
+window.startGame=function(){
+  gameQuestions=pickQuestions(selectedQCount);
+  currentQ=0;phase='question';loadQuestion();
+};
+
+function loadQuestion(){
+  if(currentQ>=gameQuestions.length){endGame();return;}
+  const q=gameQuestions[currentQ];
+  revealed=false;timeLeft=q.t;
+  answerCounts={0:0,1:0,2:0,3:0};playerAnswers={};
+  update(ref(db,'games/'+roomCode),{phase:'question',currentQ,question:{text:q.q,answers:q.a,category:q.cat,timeLimit:q.t},answers:{},revealed:false});
+  if(unsub)unsub();
+  unsub=onValue(ref(db,'games/'+roomCode+'/answers'),snap=>{
+    if(!snap.exists()||revealed)return;
+    const data=snap.val();answerCounts={0:0,1:0,2:0,3:0};
+    Object.entries(data).forEach(([pid,ans])=>{if(playerAnswers[pid]===undefined){playerAnswers[pid]=ans;soundBuzz();}answerCounts[ans]=(answerCounts[ans]||0)+1;});
+    updateCounts();
+    if(Object.keys(playerAnswers).length>=Object.keys(players).length){clearInterval(timerInterval);setTimeout(revealAnswer,600);}
+  });
+  document.getElementById('qCounter').textContent=`Q ${currentQ+1} / ${gameQuestions.length}`;
+  document.getElementById('qCat').textContent=q.cat;
+  document.getElementById('qText').textContent=q.q;
+  schmittyIntro(q);
+  document.getElementById('qTimer').textContent=q.t;
+  document.getElementById('qTimer').classList.remove('urgent');
+  document.getElementById('tbar').classList.remove('urgent');
+  document.getElementById('tbar').style.width='100%';
+  document.getElementById('nextBtn').style.display='none';
+  document.getElementById('kbdHint').textContent='Waiting for players to answer...';
+  const L=['A','B','C','D'];
+  document.getElementById('answersGrid').innerHTML=q.a.map((ans,i)=>`<div class="ans-opt" id="ao${i}"><span class="ans-letter">${L[i]}</span>${ans}<span class="ans-count" id="ac${i}">0</span></div>`).join('');
+  renderScoreboard();startTimer();showScreen('s-q');
+}
+
+function updateCounts(){for(let i=0;i<4;i++){const el=document.getElementById('ac'+i);if(el){const n=answerCounts[i]||0;el.textContent=n;el.classList.toggle('show',n>0);}}}
+
+function startTimer(){
+  clearInterval(timerInterval);const total=gameQuestions[currentQ].t;
+  timerInterval=setInterval(()=>{
+    timeLeft--;
+    const te=document.getElementById('qTimer'),bar=document.getElementById('tbar');
+    te.textContent=timeLeft;bar.style.width=Math.max(0,timeLeft/total*100)+'%';
+    if(timeLeft<=5){te.classList.add('urgent');bar.classList.add('urgent');soundTick();}
+    if(timeLeft<=0){clearInterval(timerInterval);soundTimesUp();if(!revealed)revealAnswer();}
+  },1000);
+}
+
+function revealAnswer(){
+  if(revealed)return;revealed=true;clearInterval(timerInterval);
+  const q=gameQuestions[currentQ],correct=q.c;let anyCorrect=false;
+  Object.entries(playerAnswers).forEach(([pid,ans])=>{if(ans===correct){players[pid].score+=500;anyCorrect=true;}});
+  update(ref(db,'games/'+roomCode),{revealed:true,correctAnswer:correct,players});
+  for(let i=0;i<q.a.length;i++){const el=document.getElementById('ao'+i);if(el)el.classList.add(i===correct?'correct':'wrong');}
+  renderScoreboard(true);
+  if(anyCorrect){soundCorrect();doFlash('correct');}else{soundWrong();doFlash('wrong');}
+  schmittyReveal(q, correct, anyCorrect, playerAnswers, players);
+  document.getElementById('kbdHint').textContent='Press Space or N for next question';
+  setTimeout(()=>{document.getElementById('nextBtn').style.display='inline-block';},800);
+}
+
+window.nextQuestion=function(){if(!revealed)return;currentQ++;loadQuestion();};
+
+document.addEventListener('keydown',e=>{
+  if(e.target.tagName==='INPUT')return;
+  if(phase!=='question')return;
+  if((e.key===' '||e.key==='n'||e.key==='Enter')&&revealed)nextQuestion();
+});
+
+function renderScoreboard(showResults=false){
+  const sorted=Object.entries(players).sort((a,b)=>b[1].score-a[1].score);
+  document.getElementById('scoreboard').innerHTML=sorted.map(([id,p])=>{
+    let cls='';
+    if(showResults){const ans=playerAnswers[id];if(ans!==undefined)cls=ans===gameQuestions[currentQ].c?'correct-now':'wrong-now';}
+    else if(playerAnswers[id]!==undefined)cls='answered';
+    return `<div class="sc-card ${cls}"><div class="sc-emoji">${p.emoji}</div><div class="sc-name">${p.name.split(' ')[0]}</div><div class="sc-pts">${p.score}</div></div>`;
+  }).join('');
+}
+
+function endGame(){
+  phase='done';soundFanfare();
+  update(ref(db,'games/'+roomCode),{phase:'done',players});
+  const sorted=Object.values(players).sort((a,b)=>b.score-a.score);
+  const order=[sorted[1],sorted[0],sorted[2]].filter(Boolean);
+  const cls=['second','first','third'];
+  document.getElementById('podium').innerHTML=order.map((p,i)=>`<div class="podium-block ${cls[i]}"><div class="p-name">${p.emoji} ${p.name.split(' ')[0]}</div><div class="p-score">${p.score}</div><div class="p-bar"></div></div>`).join('');
+  document.getElementById('lb').innerHTML=sorted.map((p,i)=>`<div class="lb-row"><span class="lb-rank">${i+1}.</span><span>${p.emoji} ${p.name}</span><span class="lb-pts">${p.score} pts</span></div>`).join('');
+  schmittyFinal(players);
+  showScreen('s-results');
+}
+
+window.resetGame=function(){players={};currentQ=0;phase='setup';renderSetupPlayers();showScreen('s-land');};
+
+// ══════════════════════════════════════════════════
+//  SCHMITTY — AI GAME SHOW HOST
+// ══════════════════════════════════════════════════
+
+const SCHMITTY_PERSONA = `You are Schmitty, the wisecracking host of "You Don't Know Jack (or Juan, or Jacques)" — a remote team trivia game for American, Canadian, and Latin American colleagues.
+
+Your personality:
+- Sarcastic, condescending, but secretly rooting for the players
+- Sounds like a game show host who is WAY too smart for this job
+- Makes cultural jokes that land across US / Canada / LATAM without being offensive
+- Uses dry wit, fake sympathy, and occasional genuine surprise when players get things right
+- Never repeats yourself — every line feels fresh
+- Speaks in short punchy sentences. Never more than 2-3 sentences total.
+- Occasionally breaks the fourth wall ("I've been doing this for 15 years and I still can't believe you people")
+- Has opinions about the categories (reverent about food, dismissive about pop culture, genuinely impressed by history)
+
+You have two modes:
+1. INTRO: Introduce the question with a teasing riff. Don't give away the answer. Build anticipation.
+2. REVEAL: React to the results. If anyone got it right, be grudgingly impressed. If nobody got it right, be delighted. Call out wrong answers gently. Reference the actual question topic.
+
+Keep it to 1-3 sentences max. Be funny. Be Schmitty.`;
+
+function setHostText(html) {
+  document.getElementById('hostText').innerHTML = html;
+}
+
+function showTyping() {
+  setHostText('<div class="host-typing"><span></span><span></span><span></span></div>');
+}
+
+async function callSchmitty(userPrompt) {
+  showTyping();
+  try {
+    const res = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model: "claude-sonnet-4-6",
+        max_tokens: 150,
+        system: SCHMITTY_PERSONA,
+        messages: [{ role: "user", content: userPrompt }]
+      })
+    });
+    const data = await res.json();
+    const text = data?.content?.[0]?.text || fallbackLine();
+    setHostText(text);
+  } catch(e) {
+    setHostText(fallbackLine());
+  }
+}
+
+function fallbackLine() {
+  const lines = [
+    "Think carefully. Or don't. Results may vary.",
+    "I've seen smarter answers from a Magic 8-Ball.",
+    "The clock is ticking. Much like your career prospects.",
+    "Somewhere out there, someone knows this. Is it you? Probably not.",
+    "I'm not saying it's easy. I'm saying YOU should find it easy.",
+  ];
+  return lines[Math.floor(Math.random() * lines.length)];
+}
+
+function schmittyIntro(q) {
+  const playerNames = Object.values(players).map(p => p.name.split(' ')[0]).join(', ');
+  const prompt = `INTRO mode. Category: "${q.cat}". Question: "${q.q}". Players in the game: ${playerNames}. Give a short teasing intro. Do not reveal or hint at the answer.`;
+  callSchmitty(prompt);
+}
+
+function schmittyReveal(q, correctIdx, anyCorrect, playerAnswers, players) {
+  const correctAnswer = q.a[correctIdx];
+  const correctPlayers = Object.entries(playerAnswers)
+    .filter(([pid, ans]) => ans === correctIdx)
+    .map(([pid]) => players[pid]?.name?.split(' ')[0])
+    .filter(Boolean);
+  const wrongPlayers = Object.entries(playerAnswers)
+    .filter(([pid, ans]) => ans !== correctIdx)
+    .map(([pid, ans]) => `${players[pid]?.name?.split(' ')[0]} said ${q.a[ans]}`)
+    .filter(s => !s.startsWith('undefined'));
+  const noAnswer = Object.keys(players).length - Object.keys(playerAnswers).length;
+
+  let prompt = `REVEAL mode. Category: "${q.cat}". Question: "${q.q}". Correct answer: "${correctAnswer}". `;
+  if (correctPlayers.length > 0) prompt += `Got it right: ${correctPlayers.join(', ')}. `;
+  if (wrongPlayers.length > 0) prompt += `Wrong answers: ${wrongPlayers.join('; ')}. `;
+  if (noAnswer > 0) prompt += `${noAnswer} player(s) didn't answer in time. `;
+  if (!anyCorrect) prompt += `Nobody got it right. React with delight. `;
+  prompt += `React as Schmitty. Reference the actual topic. Be specific and funny.`;
+
+  callSchmitty(prompt);
+}
+
+// Schmitty intro on game end
+async function schmittyFinal(players) {
+  const sorted = Object.values(players).sort((a,b) => b.score - a.score);
+  const winner = sorted[0];
+  const loser = sorted[sorted.length - 1];
+  const prompt = `REVEAL mode. The game is over. Winner: ${winner?.name} with ${winner?.score} points. Last place: ${loser?.name} with ${loser?.score} points. Give a dramatic, funny sign-off as Schmitty. Reference both players by name.`;
+  await callSchmitty(prompt);
+}
+
+</script>
+</body>
+</html>
