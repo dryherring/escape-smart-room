@@ -1,0 +1,444 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Escape the Smart Room — Player</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=Space+Grotesk:wght@400;600;700&family=Space+Mono:wght@400;700&display=swap');
+  :root{--bg:#0d0d0f;--surface:#18181c;--surface2:#222228;--accent:#f5c800;--accent2:#ff4d6d;--accent3:#00d4aa;--text:#f0eeea;--muted:#888;}
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{background:var(--bg);color:var(--text);font-family:'Space Grotesk',sans-serif;min-height:100dvh;overflow:hidden;touch-action:manipulation;}
+  .screen{display:none;width:100vw;min-height:100dvh;flex-direction:column;align-items:center;justify-content:center;padding:1.5rem;}
+  .screen.active{display:flex;}
+
+  #s-join{gap:1.25rem;}
+  .join-title{font-family:'Black Han Sans',sans-serif;font-size:2.2rem;color:var(--accent);text-align:center;line-height:1;}
+  .join-sub{color:var(--muted);font-size:.85rem;text-align:center;}
+  .join-form{display:flex;flex-direction:column;gap:.85rem;width:100%;max-width:300px;}
+  .field{background:var(--surface2);border:2px solid #333;border-radius:10px;color:var(--text);font-family:'Space Grotesk',sans-serif;font-size:1.1rem;font-weight:600;padding:.8rem 1rem;outline:none;text-align:center;transition:border-color .2s;width:100%;}
+  .field:focus{border-color:var(--accent);}
+  .field::placeholder{color:#555;font-weight:400;}
+  .code-field{letter-spacing:6px;text-transform:uppercase;font-size:1.4rem;}
+  .btn{font-family:'Black Han Sans',sans-serif;font-size:1.1rem;letter-spacing:1px;padding:.85rem;border:none;border-radius:10px;cursor:pointer;width:100%;transition:transform .1s,opacity .2s;-webkit-tap-highlight-color:transparent;}
+  .btn:active{transform:scale(.97);}
+  .btn-primary{background:var(--accent);color:#0d0d0f;}
+
+  #s-wait{gap:1rem;text-align:center;}
+  .wait-emoji{font-size:4rem;animation:bounce 1.5s ease-in-out infinite;}
+  @keyframes bounce{0%,100%{transform:translateY(0)}50%{transform:translateY(-12px)}}
+  .wait-title{font-family:'Black Han Sans',sans-serif;font-size:1.8rem;color:var(--accent);}
+  .wait-sub{font-family:'Space Mono',monospace;font-size:.8rem;color:var(--muted);letter-spacing:2px;}
+  .my-score{font-family:'Black Han Sans',sans-serif;font-size:3.5rem;color:var(--accent);}
+  .my-score-label{font-family:'Space Mono',monospace;font-size:.75rem;color:var(--muted);letter-spacing:3px;text-transform:uppercase;}
+
+  #s-answer{gap:1rem;justify-content:flex-start;padding-top:2rem;}
+  .q-cat-badge{background:var(--surface2);border:1px solid #333;border-radius:20px;padding:.28rem .8rem;font-size:.72rem;font-weight:700;color:var(--accent);letter-spacing:1px;text-transform:uppercase;}
+  .q-text-player{font-family:'Black Han Sans',sans-serif;font-size:clamp(1.1rem,4.5vw,1.6rem);line-height:1.2;text-align:center;max-width:340px;}
+  .timer-ring-wrap{position:relative;width:64px;height:64px;flex-shrink:0;}
+  .timer-ring{transform:rotate(-90deg);}
+  .timer-ring-bg{fill:none;stroke:var(--surface2);stroke-width:6;}
+  .timer-ring-fg{fill:none;stroke:var(--accent);stroke-width:6;stroke-linecap:round;transition:stroke-dashoffset 1s linear,stroke .5s;}
+  .timer-ring-fg.urgent{stroke:var(--accent2);}
+  .timer-num{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-family:'Black Han Sans',sans-serif;font-size:1.3rem;color:var(--accent);}
+  .timer-num.urgent{color:var(--accent2);}
+  .ans-btns{display:grid;grid-template-columns:1fr 1fr;gap:.65rem;width:100%;max-width:360px;}
+  .ans-btn{font-family:'Black Han Sans',sans-serif;font-size:1rem;padding:1rem .5rem;border-radius:12px;border:2px solid #333;background:var(--surface2);color:var(--text);cursor:pointer;transition:all .15s;touch-action:manipulation;user-select:none;display:flex;flex-direction:column;align-items:center;gap:.2rem;-webkit-tap-highlight-color:transparent;}
+  .ans-btn .ltr{font-size:1.4rem;color:var(--accent);}
+  .ans-btn .ans-txt{font-size:.75rem;font-weight:600;text-align:center;}
+  .ans-btn:active{transform:scale(.95);}
+  .ans-btn.selected{border-color:var(--accent);background:#f5c80018;}
+  .ans-btn.is-correct{border-color:var(--accent3);background:#00d4aa18;color:var(--accent3);}
+  .ans-btn.is-correct .ltr{color:var(--accent3);}
+  .ans-btn.is-wrong{border-color:var(--accent2);background:#ff4d6d10;opacity:.6;}
+
+  #s-result{gap:1rem;text-align:center;}
+  .result-icon{font-size:5rem;animation:popIn .4s cubic-bezier(.34,1.56,.64,1);}
+  @keyframes popIn{from{transform:scale(0);opacity:0}to{transform:scale(1);opacity:1}}
+  .result-title{font-family:'Black Han Sans',sans-serif;font-size:2.5rem;}
+  .result-title.correct{color:var(--accent3);}
+  .result-title.wrong{color:var(--accent2);}
+  .result-pts{font-family:'Black Han Sans',sans-serif;font-size:1.2rem;color:var(--muted);}
+  .total-score{font-family:'Black Han Sans',sans-serif;font-size:4rem;color:var(--accent);}
+  .total-label{font-family:'Space Mono',monospace;font-size:.75rem;color:var(--muted);letter-spacing:3px;text-transform:uppercase;}
+
+  #s-done{gap:1rem;text-align:center;}
+  .done-title{font-family:'Black Han Sans',sans-serif;font-size:3rem;color:var(--accent);line-height:.9;}
+
+  .flash{position:fixed;inset:0;pointer-events:none;z-index:100;opacity:0;transition:opacity .15s;}
+  .flash.correct{background:var(--accent3);}
+  .flash.wrong{background:var(--accent2);}
+  .toast{position:fixed;bottom:1.5rem;left:50%;transform:translateX(-50%) translateY(200%);background:var(--surface2);border:2px solid var(--accent);border-radius:8px;padding:.65rem 1.4rem;font-family:'Space Mono',monospace;font-size:.82rem;color:var(--accent);z-index:200;transition:transform .4s cubic-bezier(.34,1.56,.64,1);max-width:88vw;text-align:center;}
+  .toast.show{transform:translateX(-50%) translateY(0);}
+  .status-text{font-family:'Space Mono',monospace;font-size:.72rem;color:#555;margin-top:.5rem;text-align:center;}
+</style>
+</head>
+<body>
+
+<div class="flash" id="flash"></div>
+<div class="toast" id="toast"></div>
+
+<!-- JOIN -->
+<div class="screen active" id="s-join">
+  <div class="join-title">ESCAPE THE<br>SMART ROOM</div>
+  <div class="join-sub">Enter the room code from the host screen</div>
+  <div class="join-form">
+    <input class="field code-field" id="codeInput" placeholder="CODE" maxlength="4" />
+    <input class="field" id="nameInput" placeholder="Your name" maxlength="20" />
+    <button class="btn btn-primary" id="joinBtn">LET'S GO</button>
+  </div>
+</div>
+
+<!-- WAITING -->
+<div class="screen" id="s-wait">
+  <div class="wait-emoji" id="waitEmoji">🦊</div>
+  <div class="wait-title" id="waitName">Player</div>
+  <div class="wait-sub">Waiting for host to start...</div>
+  <div style="margin-top:1rem;">
+    <div class="my-score" id="waitScore">0</div>
+    <div class="my-score-label">points</div>
+  </div>
+</div>
+
+<!-- ANSWERING -->
+<div class="screen" id="s-answer">
+  <div class="q-cat-badge" id="pCat">Category</div>
+  <div style="display:flex;align-items:center;gap:1rem;width:100%;max-width:360px;justify-content:space-between;">
+    <div class="q-text-player" id="pQText">Question...</div>
+    <div class="timer-ring-wrap">
+      <svg class="timer-ring" width="64" height="64" viewBox="0 0 64 64">
+        <circle class="timer-ring-bg" cx="32" cy="32" r="26"/>
+        <circle class="timer-ring-fg" id="timerRing" cx="32" cy="32" r="26"/>
+      </svg>
+      <div class="timer-num" id="timerNum">20</div>
+    </div>
+  </div>
+  <div class="ans-btns" id="ansBtns"></div>
+  <div class="status-text" id="ansStatus"></div>
+</div>
+
+<!-- RESULT -->
+<div class="screen" id="s-result">
+  <div class="result-icon" id="resultIcon">✅</div>
+  <div class="result-title" id="resultTitle">CORRECT!</div>
+  <div class="result-pts" id="resultPts">+500 pts</div>
+  <div style="margin-top:.75rem;">
+    <div class="total-score" id="resultTotal">0</div>
+    <div class="total-label">total points</div>
+  </div>
+</div>
+
+<!-- DONE -->
+<div class="screen" id="s-done">
+  <div style="font-size:4rem;">🏆</div>
+  <div class="done-title">GAME<br>OVER!</div>
+  <div style="font-family:'Space Mono',monospace;font-size:.85rem;color:var(--muted);margin-top:.5rem;">Check the host screen for results</div>
+  <div style="margin-top:1rem;">
+    <div class="total-score" id="doneScore">0</div>
+    <div class="total-label">final points</div>
+  </div>
+</div>
+
+<!-- Firebase loaded as regular scripts — NO type=module needed -->
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+
+<script>
+// ── STATE ──
+var db = null;
+var roomCode = '';
+var playerId = '';
+var playerName = '';
+var playerEmoji = '';
+var myScore = 0;
+var currentQ = -1;
+var answered = false;
+var timerInterval = null;
+
+var EMOJIS = ["🦊","🐼","🦄","🐸","🦁","🐙","🦋","🦜","🐬","🦀","🦩","🐧","🦝","🐻","🦖","🌮","🎸","🏄","🧠","⚡"];
+
+// ── UTILS ──
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(function(s){ s.classList.remove('active'); });
+  document.getElementById(id).classList.add('active');
+}
+function doFlash(type) {
+  var el = document.getElementById('flash');
+  el.className = 'flash ' + type;
+  el.style.opacity = '.25';
+  setTimeout(function(){ el.style.opacity = '0'; }, 400);
+}
+function showToast(msg) {
+  var t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(function(){ t.classList.remove('show'); }, 3500);
+}
+
+// ── SOUND ──
+var actx = null;
+function getACtx() {
+  if (!actx) actx = new (window.AudioContext || window.webkitAudioContext)();
+  if (actx.state === 'suspended') actx.resume();
+  return actx;
+}
+function playTone(freq, type, dur, vol, delay) {
+  vol = vol || 0.3; delay = delay || 0;
+  try {
+    var ctx = getACtx();
+    var osc = ctx.createOscillator();
+    var gain = ctx.createGain();
+    osc.connect(gain); gain.connect(ctx.destination);
+    osc.type = type; osc.frequency.value = freq;
+    gain.gain.setValueAtTime(vol, ctx.currentTime + delay);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + delay + dur);
+    osc.start(ctx.currentTime + delay);
+    osc.stop(ctx.currentTime + delay + dur);
+  } catch(e) {}
+}
+function soundBuzzIn() { playTone(440,'square',.08,.3,0); playTone(880,'square',.08,.3,.06); }
+function soundCorrect() { playTone(523,'sine',.1,.4,0); playTone(659,'sine',.1,.4,.1); playTone(784,'sine',.25,.4,.2); }
+function soundWrong() { playTone(200,'sawtooth',.3,.3,0); playTone(150,'sawtooth',.3,.3,.2); }
+function soundTick() { playTone(1400,'square',.04,.12,0); }
+
+// ── WIRE UP BUTTONS ──
+document.addEventListener('DOMContentLoaded', function() {
+  // Code input — auto uppercase
+  var codeEl = document.getElementById('codeInput');
+  codeEl.addEventListener('input', function(){ this.value = this.value.toUpperCase(); });
+  codeEl.addEventListener('keydown', function(e){ if(e.key==='Enter') joinGame(); });
+  document.getElementById('nameInput').addEventListener('keydown', function(e){ if(e.key==='Enter') joinGame(); });
+  document.getElementById('joinBtn').addEventListener('click', joinGame);
+});
+
+// ── JOIN ──
+function joinGame() {
+  var code = document.getElementById('codeInput').value.trim().toUpperCase();
+  var name = document.getElementById('nameInput').value.trim();
+  if (code.length < 2) { showToast('Enter the room code!'); return; }
+  if (!name) { showToast('Enter your name!'); return; }
+
+  // Get Firebase config from URL params
+  var params = new URLSearchParams(window.location.search);
+  var apiKey = params.get('apiKey');
+  var dbURL = params.get('dbURL');
+  var projectId = params.get('projectId');
+
+  if (!apiKey || !dbURL || !projectId) {
+    showToast('Missing Firebase config in URL — see host for the correct link');
+    return;
+  }
+
+  // Init Firebase using compat SDK (no modules needed)
+  try {
+    var app;
+    try {
+      app = firebase.app('player');
+    } catch(e) {
+      app = firebase.initializeApp({ apiKey: apiKey, databaseURL: dbURL, projectId: projectId }, 'player');
+    }
+    db = firebase.database(app);
+  } catch(e) {
+    showToast('Could not connect to Firebase — check the link');
+    console.error(e);
+    return;
+  }
+
+  // Check room exists then join
+  db.ref('games/' + code).once('value').then(function(snap) {
+    if (!snap.exists()) {
+      showToast('Room not found! Check the code.');
+      return;
+    }
+
+    roomCode = code;
+    playerName = name;
+    playerId = 'p' + Date.now();
+    playerEmoji = EMOJIS[Math.floor(Math.random() * EMOJIS.length)];
+    myScore = 0;
+
+    // Register player
+    db.ref('games/' + roomCode + '/players/' + playerId).update({
+      name: playerName,
+      score: 0,
+      emoji: playerEmoji
+    }).then(function() {
+      document.getElementById('waitEmoji').textContent = playerEmoji;
+      document.getElementById('waitName').textContent = playerName;
+      document.getElementById('waitScore').textContent = '0';
+      showScreen('s-wait');
+      listenToGame();
+    });
+
+  }).catch(function(e) {
+    showToast('Connection error — check your internet');
+    console.error(e);
+  });
+}
+
+// ── LISTEN TO GAME STATE ──
+function listenToGame() {
+  db.ref('games/' + roomCode).on('value', function(snap) {
+    if (!snap.exists()) return;
+    var game = snap.val();
+
+    // Update score
+    if (game.players && game.players[playerId]) {
+      myScore = game.players[playerId].score || 0;
+      document.getElementById('waitScore').textContent = myScore;
+    }
+
+    if (game.phase === 'question' && game.currentQ !== currentQ) {
+      currentQ = game.currentQ;
+      answered = false;
+      showQuestion(game.question);
+    }
+
+    if (game.phase === 'question' && game.revealed && answered) {
+      showRoundResult(game.correctAnswer);
+    }
+
+    if (game.phase === 'done') {
+      document.getElementById('doneScore').textContent = myScore;
+      showScreen('s-done');
+    }
+  });
+}
+
+// ── SHOW QUESTION ──
+function showQuestion(q) {
+  if (!q) return;
+  clearInterval(timerInterval);
+  answered = false;
+
+  document.getElementById('pCat').textContent = q.category;
+  document.getElementById('pQText').textContent = q.text;
+  document.getElementById('ansStatus').textContent = '';
+
+  var circumference = 2 * Math.PI * 26;
+  var ring = document.getElementById('timerRing');
+  ring.style.strokeDasharray = circumference;
+  ring.style.strokeDashoffset = '0';
+  ring.classList.remove('urgent');
+  document.getElementById('timerNum').classList.remove('urgent');
+
+  var timeLeft = q.timeLimit;
+  document.getElementById('timerNum').textContent = timeLeft;
+
+  timerInterval = setInterval(function() {
+    timeLeft--;
+    document.getElementById('timerNum').textContent = timeLeft;
+    var offset = circumference * (1 - timeLeft / q.timeLimit);
+    ring.style.strokeDashoffset = offset;
+    if (timeLeft <= 5) {
+      ring.classList.add('urgent');
+      document.getElementById('timerNum').classList.add('urgent');
+      soundTick();
+    }
+    if (timeLeft <= 0) {
+      clearInterval(timerInterval);
+      if (!answered) {
+        document.getElementById('ansStatus').textContent = "Time's up!";
+        disableAnswers();
+      }
+    }
+  }, 1000);
+
+  // Build answer buttons
+  var letters = ['A','B','C','D'];
+  var container = document.getElementById('ansBtns');
+  container.innerHTML = '';
+  q.answers.forEach(function(ans, i) {
+    var btn = document.createElement('button');
+    btn.className = 'ans-btn';
+    btn.id = 'ab' + i;
+    btn.innerHTML = '<span class="ltr">' + letters[i] + '</span><span class="ans-txt">' + ans + '</span>';
+    btn.addEventListener('click', function() { submitAnswer(i); });
+    container.appendChild(btn);
+  });
+
+  showScreen('s-answer');
+}
+
+// ── SUBMIT ANSWER ──
+function submitAnswer(idx) {
+  if (answered) return;
+  answered = true;
+  clearInterval(timerInterval);
+  soundBuzzIn();
+
+  for (var i = 0; i < 4; i++) {
+    var btn = document.getElementById('ab' + i);
+    if (btn) {
+      btn.disabled = true;
+      if (i === idx) btn.classList.add('selected');
+    }
+  }
+  document.getElementById('ansStatus').textContent = 'Locked in! Waiting for host...';
+
+  db.ref('games/' + roomCode + '/answers').update({ [playerId]: idx });
+}
+
+function disableAnswers() {
+  for (var i = 0; i < 4; i++) {
+    var btn = document.getElementById('ab' + i);
+    if (btn) btn.disabled = true;
+  }
+}
+
+// ── SHOW ROUND RESULT ──
+function showRoundResult(correctAnswer) {
+  clearInterval(timerInterval);
+
+  var myAnswer = -1;
+  for (var i = 0; i < 4; i++) {
+    var btn = document.getElementById('ab' + i);
+    if (btn && btn.classList.contains('selected')) { myAnswer = i; break; }
+  }
+
+  var isCorrect = (myAnswer === correctAnswer);
+
+  for (var j = 0; j < 4; j++) {
+    var b = document.getElementById('ab' + j);
+    if (!b) continue;
+    b.disabled = true;
+    if (j === correctAnswer) b.classList.add('is-correct');
+    else if (j === myAnswer) b.classList.add('is-wrong');
+  }
+
+  setTimeout(function() {
+    if (isCorrect) {
+      myScore += 500;
+      document.getElementById('resultIcon').textContent = '🎉';
+      document.getElementById('resultTitle').textContent = 'CORRECT!';
+      document.getElementById('resultTitle').className = 'result-title correct';
+      document.getElementById('resultPts').textContent = '+500 pts';
+      soundCorrect();
+      doFlash('correct');
+    } else if (myAnswer === -1) {
+      document.getElementById('resultIcon').textContent = '⏰';
+      document.getElementById('resultTitle').textContent = 'TOO SLOW!';
+      document.getElementById('resultTitle').className = 'result-title wrong';
+      document.getElementById('resultPts').textContent = '+0 pts';
+      soundWrong();
+      doFlash('wrong');
+    } else {
+      document.getElementById('resultIcon').textContent = '😬';
+      document.getElementById('resultTitle').textContent = 'WRONG!';
+      document.getElementById('resultTitle').className = 'result-title wrong';
+      document.getElementById('resultPts').textContent = '+0 pts';
+      soundWrong();
+      doFlash('wrong');
+    }
+    document.getElementById('resultTotal').textContent = myScore;
+    showScreen('s-result');
+
+    setTimeout(function() {
+      document.getElementById('waitScore').textContent = myScore;
+      showScreen('s-wait');
+    }, 3500);
+  }, 600);
+}
+</script>
+</body>
+</html>
